@@ -16,40 +16,53 @@ void School::Set_availability_to_open()  {
     for (int i=0;i<number_of_sequences;i++)  {
         arrangements[i]->set_availability_to(true);
     }
+    std::cout<<"freedom at last"<< std::endl;
 }
 
-Student_Pair* School::pick_random(Student_Pair* original_pair,int sequence_id,bool same_class,bool vvip_scenario,bool gender_of_pair)  {
-    int choices[arrangements[sequence_id]->get_pair_position()];
+Student_Pair* School::pick_random(Student_Pair* original_pair,int sequence_id,bool same_class,bool vvip_scenario,bool full_switch,bool gender_of_pair)  {
+    int choices[arrangements[sequence_id]->get_pair_position()+1];
     int posible_choices=0;
     Student_Pair* pair;
     if (same_class)  {
         for (int i=0;i<arrangements[sequence_id]->get_pair_position();i++)  {
             if (arrangements[sequence_id]->get_nth_pair(i)!=original_pair)  {
-                if ((gender_of_pair && arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=1)||(!gender_of_pair &&arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=2))  {
+                if (full_switch && arrangements[sequence_id]->get_nth_pair(i)->get_situation()==3)  {
+                    choices[posible_choices]=i;
+                    posible_choices++;
+                }
+                else if ((gender_of_pair && arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=1)||(!gender_of_pair &&arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=2) )  {
                     choices[posible_choices]=i;
                     posible_choices++;
                 }
             }
         }
         int pick=choices[rand()%posible_choices];
+        std::cout << "!#?Pick:: "<<pick <<std::endl;
         pair=arrangements[sequence_id]->get_nth_pair(pick);
+        return pair;
     }
     else  {
         for (int i=0;i<number_of_sequences;i++)  {
+            std::cout << "pp1 " <<std::endl;
             if ((sequence_id+i+1)%number_of_sequences!=sequence_id)  {
-                if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_availbility())  {
+                if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_availability())  {
+                    std::cout << "pp2 " <<std::endl;
                     for (int j=0;j<arrangements[(sequence_id+i+1)%number_of_sequences]->get_pair_position();j++)  {
-                        if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_importance()!=1)  {
-                            choices[posible_choices]=i;
+                        if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_importance()!=1 && arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_situation()==3)  {
+                            choices[posible_choices]=j;
                             posible_choices++;
                         }
-                    int pick=choices[rand()%posible_choices];
-                    pair=arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(pick);
                     }
+                    if (posible_choices==0)  {
+                        continue;
+                    }
+                    int pick=choices[rand()%posible_choices];
+                    std::cout << "Pick:: "<<pick <<std::endl;
+                    pair=arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(pick);
                     if (vvip_scenario)  {
                         arrangements[(sequence_id+i+1)%number_of_sequences]->set_availability_to(false);
                     }
-                    break;
+                    return pair;
                 }
             }
         }
@@ -59,7 +72,6 @@ Student_Pair* School::pick_random(Student_Pair* original_pair,int sequence_id,bo
 
 School::School(const std::string* boys,const std::string* girls,int size_boys,int size_girls,int number_of_sequences,int mess_limit,int quiet_limit) : number_of_sequences(number_of_sequences) {
     arrangements=new Sequence*[number_of_sequences];
-    class_sequence_begin=new int[number_of_sequences];
     int registered_girls=0;
     int registered_boys=0;
     int remainder_boys=size_boys%number_of_sequences;
@@ -78,28 +90,31 @@ School::School(const std::string* boys,const std::string* girls,int size_boys,in
     }
     int min_size;
     if(size_girls>size_boys)  {
-        min_size=size_boys;
+        min_size=size_boys/number_of_sequences;
     }
     else  {
-        min_size=size_boys;
+        min_size=size_boys/number_of_sequences;
     }
     for (int i=0;i<number_of_sequences;i++)  { 
         if (remainder_boys>0)  {
+            std::cout << "1    " << std::endl;
             arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,2,mess_limit,quiet_limit,i);
             registered_girls=registered_girls+min_size;
             registered_boys=registered_boys+min_size+1;
             remainder_boys--;
         }
         else if (remainder_girls>0)  {
+            std::cout << "2    " << std::endl;
             arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,1,mess_limit,quiet_limit,i);
             registered_girls=registered_girls+min_size+1;
             registered_boys=registered_boys+min_size;
             remainder_girls--;
         }
         else  {
-            arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,(size_boys+size_girls)/number_of_sequences,0,mess_limit,quiet_limit,i);
-            registered_girls=registered_girls+(size_boys+size_girls)/number_of_sequences;
-            registered_boys=registered_boys+(size_boys+size_girls)/number_of_sequences;
+            std::cout << "3   " << std::endl;
+            arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,0,mess_limit,quiet_limit,i);
+            registered_girls=registered_girls+min_size;
+            registered_boys=registered_boys+min_size;
         }
     }
 }
@@ -109,22 +124,53 @@ School::~School()  {
         delete arrangements[i];
     }
     delete[] arrangements;
-    delete[] large_sequence;
+    delete large_sequence;
 }
 
-void School::swap(int id,Student_Pair* pair,short mode,bool gender,bool vvip_scenario)  {
-    Student_Pair* other_pair;
-    if (mode==0)  {
-        other_pair=pick_random(pair,id,true,false,gender);
-        arrangements[id]->switch_member_of_pair(pair,other_pair,0,gender);  
+void School::switch_member_of_pair(Student_Pair* pair1,Student_Pair* pair2,bool full_switch,bool gender)  {
+    if (full_switch)  {
+        std::cout <<pair1->get_situation()<<" "<<pair2->get_situation() <<std::endl;
+        pair1->pay_and_repent(1,0);
+        pair2->pay_and_repent(1,0);
+        Student* temp_boy=pair2->get_member(0);
+        Student* temp_girl=pair2->get_member(1);
+        pair2->replace_member(pair1->get_member(1),1);
+        pair2->replace_member(pair1->get_member(0),0);
+        pair1->replace_member(temp_girl,1);
+        pair1->replace_member(temp_boy,0);
     }
-    else if (mode==1)  {
-        other_pair=pick_random(pair,id,true,false,false);
-        arrangements[id]->switch_member_of_pair(pair,other_pair,1,0);
+    else if (gender) {
+        pair1->pay_and_repent(0,1);
+        pair2->pay_and_repent(0,1);
+        Student* temp_girl=pair2->get_member(1);
+        pair2->replace_member(pair1->get_member(1),1);
+        pair1->replace_member(temp_girl,1);
     }
     else  {
-        other_pair=pick_random(pair,id,false,true,false);
-        arrangements[id]->switch_member_of_pair(pair,other_pair,1,0);
+        pair1->pay_and_repent(0,0);
+        pair2->pay_and_repent(0,0);
+        Student* temp_boy=pair2->get_member(0);
+        pair2->replace_member(pair1->get_member(0),0);
+        pair1->replace_member(temp_boy,0);
+    }
+}
+
+void School::swap(Student_Pair* pair,bool gender)  {
+    Student_Pair* other_pair;
+    if (pair->get_mode_of_transfer()==0)  {
+        std::cout << "0"<< std::endl;
+        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,false,gender);
+        switch_member_of_pair(pair,other_pair,0,gender);  
+    }
+    else if (pair->get_mode_of_transfer()==1)  {
+        std::cout << "1"<< std::endl;
+        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,true,false);
+        switch_member_of_pair(pair,other_pair,1,0);
+    }
+    else  {
+        std::cout << "2"<< std::endl;
+        other_pair=pick_random(pair,pair->get_sequence_id(),false,pair->get_importance(),true,false);
+        switch_member_of_pair(pair,other_pair,1,0);
     }
 }
 
@@ -148,7 +194,6 @@ void School::create_unified_sequence()  {
     int last_lonely_pair;
     for (int i=0;i<number_of_sequences;i++)  {
         int j;
-        class_sequence_begin[i]=large_sequence->get_pair_position();
         for (j=0;(j<arrangements[i]->count_girls()) && (j<arrangements[i]->count_boys());j++)  {
             large_sequence->copy_pair(arrangements[i]->get_nth_pair(j));
         }
@@ -199,24 +244,110 @@ void School::create_unified_sequence()  {
 }
 
 void School::behave(int L)  {
-    srand(time(NULL));
-    int naughty_students;
-    bool double_mess=0;
-    int limit=large_sequence->get_pair_position();
-    for (int i=0;i<L;i++)  {
-        naughty_students=rand()%(limit);
-        int baddest[naughty_students];
-        int bad_pairs=0;
-        for (int j=0;j<naughty_students;j++)  {
-            int pick=rand()%limit;
-        }       
+    while (L-->0)  {
+        srand(time(NULL));
+        int naughty_students;
+        bool double_mess=0;
+        int limit=large_sequence->get_pair_position();
+        for (int i=0;i<L;i++)  {
+            naughty_students=rand()%(limit);
+            for (int j=0;j<naughty_students;j++)  {
+                int pick=rand()%limit;
+                if (large_sequence->get_nth_pair(pick)->bad_pair()!=0)  {
+                    continue;
+                }
+                std::cout << "here"<< std::endl;
+                bool both=large_sequence->get_nth_pair(pick)->cause_trouble(j,naughty_students);
+                std::cout << "here1"<< std::endl;
+                if (rand()%2==0 && both && (pick+1)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+1)->get_situation()==3)  {
+                    std::cout << "here2"<< std::endl;
+                    both=large_sequence->get_nth_pair(pick+1)->cause_trouble(j,naughty_students);
+                    std::cout << "here3"<< std::endl;
+                    if (number_of_sequences>3 && rand()%2==0 && both && (pick+2)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+2)->get_situation()==3)  {
+                        std::cout << "here4"<< std::endl;
+                        large_sequence->get_nth_pair(pick+2)->cause_trouble(j,naughty_students);
+                        std::cout << "here5"<< std::endl;
+                    }  
+                }
+                
+            }
+            for (int i=0;i<number_of_sequences;i++)  {
+                int start_of_consecutive_pair=0;
+                int consecutive_counter=0;
+                int noisy_pairs_counter=0;
+                for (int j=0;j<arrangements[i]->get_pair_position();j++)  {
+                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3)  {
+                        if (consecutive_counter==0)  {
+                            start_of_consecutive_pair=j;
+                        }
+                        consecutive_counter++;
+                        noisy_pairs_counter++;
+                    }
+                    else  {
+                        if (consecutive_counter>2)  {
+                            for (int k=start_of_consecutive_pair;k<start_of_consecutive_pair+consecutive_counter;k++)  {
+                                if (k==start_of_consecutive_pair)  {
+                                    arrangements[i]->get_nth_pair(k)->set_to_start_of_consecutive_pairs();
+                                }
+                                arrangements[i]->get_nth_pair(k)->award_vvip_status();
+                                arrangements[i]->get_nth_pair(k)->award_double_penalty_status();
+                                arrangements[i]->get_nth_pair(k)->set_mode_of_transfer(2);
+                            }
+                            noisy_pairs_counter=noisy_pairs_counter-consecutive_counter;
+                            consecutive_counter=0;
+                        }
+                        else  {
+                            arrangements[i]->get_nth_pair(start_of_consecutive_pair)->award_double_penalty_status();
+                            consecutive_counter=0;
+                            noisy_pairs_counter++;
+                        }
+                        if (arrangements[i]->get_nth_pair(j)->bad_pair()==2 || arrangements[i]->get_nth_pair(j)->bad_pair()==1)  {
+                            arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(0);
+                        }
+                    }
+                }
+                for (int j=0;j<arrangements[i]->get_pair_position();j++)  {
+                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3 && arrangements[i]->get_nth_pair(j)->get_importance()!=1)  {
+                        if (noisy_pairs_counter>2)  {
+                            arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(2);
+                            arrangements[i]->get_nth_pair(j)->award_double_penalty_status();
+                        }
+                        else  {
+                            arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(1);
+                        }
+                    }
+                }
+            } 
+            for (int i=0;i<large_sequence->get_pair_position();i++)  {
+                if (large_sequence->get_nth_pair(i)->get_importance())  {
+                    if (large_sequence->get_nth_pair(i)->is_consecutive_pairs_start())  {
+                        Set_availability_to_open();
+                    }
+                    std::cout << "niceeee"<< std::endl;
+                    swap(large_sequence->get_nth_pair(i),0);   
+                }
+            }  
+            for (int i=0;i<large_sequence->get_pair_position();i++)  {
+                if (large_sequence->get_nth_pair(i)->bad_pair()==3)  {
+                    std::cout << "sweet"<< std::endl;
+                    swap(large_sequence->get_nth_pair(i),0);    
+                }
+            }
+            for (int i=0;i<large_sequence->get_pair_position();i++)  {
+                if (large_sequence->get_nth_pair(i)->bad_pair()==1)  {
+                    std::cout << "git"<< std::endl;
+                    swap(large_sequence->get_nth_pair(i),1);
+                }
+                else if (large_sequence->get_nth_pair(i)->bad_pair()==2)  {
+                    std::cout << "biy"<< std::endl;
+                    swap(large_sequence->get_nth_pair(i),0);  
+                }
+            } 
+        }
     }
 
 }
 
-int Sequence::get_pair_position()  {
-    return pairs_count;
-}
 
 
 
@@ -247,17 +378,39 @@ std::string Student::get_name()  {
     return name;
 }
 
+bool Student::is_mischievous()  {
+    return mischievous;
+}
+
+void Student::causes_noise()  {
+    mischievous=true;
+}
 
 
 
 
 
+short Student_Pair::get_mode_of_transfer()  {
+    return mode_of_tranfer;
+}
 
+void Student_Pair::set_mode_of_transfer(short mode)  {
+    mode_of_tranfer=mode;
+}
 
+void Student_Pair::award_double_penalty_status()  {
+    double_penalty=1;
+}
 
+void Student_Pair::award_vvip_status()  {
+    vvip=1;
+}
 
+int Student_Pair::get_sequence_id()  {
+    return sequence->get_id();
+}
 
-Student_Pair::Student_Pair(Student* Girl,Student* Boy) : situation(0), vvip(0), double_penalty(0) {
+Student_Pair::Student_Pair(Student* Girl,Student* Boy,Sequence* sequence) : start_of_consecutive(0), sequence(sequence), situation(0), vvip(0), double_penalty(0) {
     if (Girl!=NULL)  {
         situation++;
     }
@@ -268,29 +421,42 @@ Student_Pair::Student_Pair(Student* Girl,Student* Boy) : situation(0), vvip(0), 
     this->Boy=Boy;
 }
 
+Student_Pair::~Student_Pair()  {
+    if (Boy!=NULL)  {
+        delete Boy;
+    }
+    if (Girl!=NULL)  {
+        delete Girl;
+    }
+}
+
 void Student_Pair::pay_and_repent(bool both_members,bool gender)  {
     if (both_members)  {
-        Boy->get_sequence()->increase_degree_of_disorder(Boy->is_michievous()*(double_penalty+1));
-        Girl->get_sequence()->increase_degree_of_disorder(Girl->is_michievous()*(double_penalty+1));
+        std::cout << "Pay" <<Boy << "<->" << Girl << std::endl;
+        Boy->get_sequence()->increase_degree_of_disorder(Boy->is_mischievous()*(double_penalty+1));
+        Girl->get_sequence()->increase_degree_of_disorder(Girl->is_mischievous()*(double_penalty+1));
         Boy->repent();
         Girl->repent();
     }
     else  {
         if (gender)  {
-            Girl->get_sequence()->increase_degree_of_disorder(Girl->is_michievous());
+            Girl->get_sequence()->increase_degree_of_disorder(Girl->is_mischievous());
             Girl->repent();
         }
         else  {
-            Boy->get_sequence()->increase_degree_of_disorder(Boy->is_michievous());
+            Boy->get_sequence()->increase_degree_of_disorder(Boy->is_mischievous());
             Boy->repent();
         }
-        double_penalty=0;
-        vvip=0;
     }
+    double_penalty=0;
+    vvip=0;
 }
 
 short Student_Pair::bad_pair()  {
-    return 2*Boy->is_michievous()+Girl->is_michievous();
+    if (Boy==NULL) return Girl->is_mischievous();
+    if (Girl==NULL) return 2*Boy->is_mischievous();
+    return 2*Boy->is_mischievous()+Girl->is_mischievous();
+
 }
 
 std::string Student_Pair::get_name_of_boy()  {
@@ -324,6 +490,15 @@ void Student_Pair::replace_member(Student* student,bool gender)  {
     }
 }
 
+void Student_Pair::set_to_start_of_consecutive_pairs()  {
+    start_of_consecutive=true;
+}
+
+
+bool Student_Pair::is_consecutive_pairs_start()  {
+    return start_of_consecutive;
+}
+
 Student* Student_Pair::get_member(bool gender)  {
     if (gender)  {
         return Girl;
@@ -333,25 +508,37 @@ Student* Student_Pair::get_member(bool gender)  {
     }
 }
 
-bool Student_Pair::cause_trouble()  {
-    short pick=rand()%3;
-    if (pick==0)  {
-        Girl->causes_noise();
-        return false;
+bool Student_Pair::cause_trouble(int &rolls,int max_rolls)  {
+    if (situation==3)  {
+        if (rand()%2==0 && rolls+1<max_rolls)  {
+            rolls=rolls+2;
+            get_member(0)->causes_noise();
+            get_member(1)->causes_noise();
+            return true;
+        }
+        else  {
+            get_member(rand()%2)->causes_noise();
+            rolls++;
+        }  
     }
-    else if (pick==1)  {
-        Boy->causes_noise();
-        return false;
-    }
+    else if (situation==2)  {
+        get_member(0)->causes_noise();
+        rolls++;
+    } 
     else  {
-        Boy->causes_noise();
-        Girl->causes_noise();
-        return true;
+        get_member(1)->causes_noise();
+        rolls++;
     }
+    return false;
+}
+
+bool Student_Pair::get_importance()  {
+    return vvip;
 }
 
 
-/*Student_Pair::Student_Pair(const Student_Pair& pair)  {
+/*
+Student_Pair::Student_Pair(const Student_Pair& pair)  {
     this->Boy=pair.Boy;
     this->Girl=pair.Girl;
     this->situation=pair.situation;
@@ -366,12 +553,40 @@ bool Student_Pair::cause_trouble()  {
 
 
 
+int Sequence::count_boys()  {
+    if (get_nth_pair(get_pair_position()-1)->get_situation()==2)  {
+        return get_pair_position();
+    }
+    else  {
+        return get_pair_position()-1;
+    }
+}
 
+int Sequence::count_girls()  {
+    if (get_nth_pair(get_pair_position()-1)->get_situation()==1)  {
+        return get_pair_position();
+    }
+    else  {
+        return get_pair_position()-1;
+    }
+}
 
+int Sequence::count_students()  {
+    return count_boys()+count_girls();
+}
 
+int Sequence::get_id()  {
+    return id;
+}
+
+int Sequence::get_pair_position()  {
+    return pairs_count;
+}
 
 void Sequence::send_to_oblivion(Student_Pair* pair)  {
     pairs_count--; // will only occur on the last pair of a classroom
+    pair->replace_member(NULL,0);
+    pair->replace_member(NULL,1);
     delete pair;
 }
 
@@ -383,33 +598,40 @@ void Sequence::set_availability_to(bool status)  {
     available=status;
 }
 
-Sequence::Sequence(const std::string* boys,const std::string* girls,int min_size,int mode,int mess_limit,int quiet_limit,short id) : pairs_count(0), available(true), degree_of_disorder(0), quiet_limit(quiet_limit), mess_limit(mess_limit) {
+Sequence::Sequence(int max_size) : pairs_count(0) {
+    pairs=new Student_Pair*[max_size];
+}
+
+Sequence::Sequence(const std::string* boys,const std::string* girls,int min_size,int mode,int mess_limit,int quiet_limit,short id) : pairs_count(0), available(true), degree_of_disorder(0), quiet_limit(quiet_limit), mess_limit(mess_limit), id(id) {
     pairs=new Student_Pair*[min_size+(mode!=0)];
     int i;
+    
     for (i=0;i<min_size;i++)  {
         Student* Boy=new Student(boys[i],0,this);
         Student* Girl=new Student(girls[i],1,this);
-        pairs[i]=new Student_Pair(Girl,Boy);
+        pairs[i]=new Student_Pair(Girl,Boy,this);
         pairs_count++;
     }
     if (mode==1)  {
+        
         Student* Girl=new Student(girls[i],1,this);
-        pairs[i]=new Student_Pair(Girl,NULL);
+        pairs[i]=new Student_Pair(Girl,NULL,this);
         pairs_count++;
     }
     else if (mode==2)  {
         Student* Boy=new Student(boys[i],0,this);
-        pairs[i]=new Student_Pair(Boy,NULL);
+        pairs[i]=new Student_Pair(NULL,Boy,this);
         pairs_count++;
     }
 }
 
 Sequence::~Sequence()  {
     for (int i=0;i<pairs_count;i++)  {
-        delete pairs[i];
+        //delete pairs[i];
     }
     delete[] pairs;
 }
+
 /*
 void Sequence::add_to_arrangement(Student* Girl,Student* Boy)  {
     pairs[pairs_count]=new Student_Pair(Girl,Boy);
@@ -417,36 +639,11 @@ void Sequence::add_to_arrangement(Student* Girl,Student* Boy)  {
 }
 */
 
-void Sequence::switch_member_of_pair(Student_Pair* pair1,Student_Pair* pair2,bool full_switch,bool gender)  {
-    if (full_switch)  {
-        pair1->pay_and_repent(1,0);
-        pair2->pay_and_repent(1,0);
-        Student* temp_boy=pair2->get_member(0);
-        Student* temp_girl=pair2->get_member(1);
-        pair2->replace_member(pair1->get_member(1),1);
-        pair2->replace_member(pair1->get_member(0),0);
-        pair1->replace_member(temp_girl,1);
-        pair1->replace_member(temp_boy,0);
-    }
-    else if (gender) {
-        pair1->pay_and_repent(0,1);
-        pair2->pay_and_repent(0,1);
-        Student* temp_girl=pair2->get_member(1);
-        pair2->replace_member(pair1->get_member(1),1);
-        pair1->replace_member(temp_girl,1);
-    }
-    else  {
-        pair1->pay_and_repent(0,0);
-        pair2->pay_and_repent(0,0);
-        Student* temp_boy=pair2->get_member(0);
-        pair2->replace_member(pair1->get_member(0),0);
-        pair1->replace_member(temp_boy,0);
-    }
-}
+
 
 void Sequence::print()  {
     bool flip=true;
-    int size=7;
+    int size=5;
     for (int i=0;i<pairs_count;i++)  {
         if (flip)  {
             if (pairs[i]->get_situation()!=1)  {
@@ -469,7 +666,6 @@ void Sequence::print()  {
     }
     std::cout << std::endl;
     flip=true;
-    size=7;
     for (int i=0;i<pairs_count;i++)  {
         if (flip)  {
             if (pairs[i]->get_situation()!=2)  {
@@ -494,10 +690,12 @@ void Sequence::print()  {
 
 }
 
-void Sequence::copy_pair(Student_Pair* pair)  {
+
+void Sequence::copy_pair(Student_Pair* pair)  {  
     pairs[pairs_count]=pair;
     pairs_count++;
 } 
+
 
 void Sequence::increase_degree_of_disorder(int n)  {
     degree_of_disorder=degree_of_disorder+n;
