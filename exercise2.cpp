@@ -6,68 +6,78 @@
 #include <cstdlib>
 
 bool complex_maths(int type1,int type2,int rem1,int rem2,int limit)  {
-    bool success_flag1=((type1!=type2 && (rem1+rem2)==0) || (type1==type2));
+    bool success_flag1=((type1!=type2 && (rem1+rem2)==0) || (type1==type2)); //assert if populations of each genre can create a distribution that's acceptible to the exercise 
     bool success_flag2=((rem1+rem2)<=limit);
     return success_flag1 && success_flag2;
 
 }
 
-void School::Set_availability_to_open()  {
+void School::Set_availability_to_open()  {  // Set all sequences to accesible for entry of consecutive pair
     for (int i=0;i<number_of_sequences;i++)  {
         arrangements[i]->set_availability_to(true);
     }
-    std::cout<<"freedom at last"<< std::endl;
 }
 
 Student_Pair* School::pick_random(Student_Pair* original_pair,int sequence_id,bool same_class,bool vvip_scenario,bool full_switch,bool gender_of_pair)  {
-    int choices[arrangements[sequence_id]->get_pair_position()+1];
-    int posible_choices=0;
+    int choices[arrangements[sequence_id]->get_pair_position()+1]; //Pick a random pair out of some candidates from one sequence
+    int posible_choices=0;                                         //this is plausible if for for each valid candidate, we store his position in an array
     Student_Pair* pair;
-    if (same_class)  {
+    if (same_class)  {   //case of pickinh a pair from the same sequence
         for (int i=0;i<arrangements[sequence_id]->get_pair_position();i++)  {
             if (arrangements[sequence_id]->get_nth_pair(i)!=original_pair)  {
-                if (full_switch && arrangements[sequence_id]->get_nth_pair(i)->get_situation()==3)  {
+                if (full_switch && arrangements[sequence_id]->get_nth_pair(i)->get_situation()==3)  { //if the change that will occur is for both members of the pair, then we need to search for a complete pair 
                     choices[posible_choices]=i;
                     posible_choices++;
                 }
-                else if ((gender_of_pair && arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=1)||(!gender_of_pair &&arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=2) )  {
-                    choices[posible_choices]=i;
+                else if ((gender_of_pair && arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=2)||(!gender_of_pair &&arrangements[sequence_id]->get_nth_pair(i)->get_situation()!=1) )  {
+                    choices[posible_choices]=i; //else, if it's a girl, we require that the pair has a girl, or if it is a boy, we require that the pair has a boy
                     posible_choices++;
                 }
             }
         }
-        int pick=choices[rand()%posible_choices];
-        std::cout << "!#?Pick:: "<<pick <<std::endl;
+        int pick=choices[rand()%posible_choices]; //random choice from possible candidates
         pair=arrangements[sequence_id]->get_nth_pair(pick);
         return pair;
     }
-    else  {
+    else  { //searching for a pair in a different sequence
         for (int i=0;i<number_of_sequences;i++)  {
-            std::cout << "pp1 " <<std::endl;
-            if ((sequence_id+i+1)%number_of_sequences!=sequence_id)  {
-                if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_availability())  {
-                    std::cout << "pp2 " <<std::endl;
+            if ((sequence_id+i+1)%number_of_sequences!=sequence_id)  { //we will look at the next sequence, until we reach all the way to the previous
+                if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_availability())  {//This condition will only matter if we are examining a consecutive pair, so that we try and place the consecutive pairs in different sequences
                     for (int j=0;j<arrangements[(sequence_id+i+1)%number_of_sequences]->get_pair_position();j++)  {
                         if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_importance()!=1 && arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_situation()==3)  {
-                            choices[posible_choices]=j;
+                            choices[posible_choices]=j;//The pair must not be a consecutive pair(that would mix up the proccess of placing them in different classrooms) and must be a complete pair
                             posible_choices++;
                         }
                     }
-                    if (posible_choices==0)  {
-                        continue;
-                    }
                     int pick=choices[rand()%posible_choices];
-                    std::cout << "Pick:: "<<pick <<std::endl;
                     pair=arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(pick);
-                    if (vvip_scenario)  {
+                    if (vvip_scenario)  {//if we just place a consecutive pair, we make sure that any other consecutive pair of the same arrangement of consecutives, will not be placed in the same sequence
                         arrangements[(sequence_id+i+1)%number_of_sequences]->set_availability_to(false);
                     }
                     return pair;
                 }
             }
         }
+    } //if we reach this far, it means that from an arrangement of consecutive pairs, no other classrooms are available to follow the rule, one-per-classroom, thus we allow for placing two pairs in same sequence, and so on... 
+    Set_availability_to_open();
+    for (int i=0;i<number_of_sequences;i++)  {//repeat of the above
+        if ((sequence_id+i+1)%number_of_sequences!=sequence_id)  {
+            if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_availability())  {
+                for (int j=0;j<arrangements[(sequence_id+i+1)%number_of_sequences]->get_pair_position();j++)  {
+                    if (arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_importance()!=1 && arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(j)->get_situation()==3)  {
+                        choices[posible_choices]=j;
+                        posible_choices++;
+                    }
+                }
+                int pick=choices[rand()%posible_choices];
+                pair=arrangements[(sequence_id+i+1)%number_of_sequences]->get_nth_pair(pick);
+                if (vvip_scenario)  {
+                    arrangements[(sequence_id+i+1)%number_of_sequences]->set_availability_to(false);
+                }
+                return pair;
+            }
+        }
     }
-    return pair;
 }
 
 School::School(const std::string* boys,const std::string* girls,int size_boys,int size_girls,int number_of_sequences,int mess_limit,int quiet_limit) : number_of_sequences(number_of_sequences) {
@@ -76,6 +86,12 @@ School::School(const std::string* boys,const std::string* girls,int size_boys,in
     int registered_boys=0;
     int remainder_boys=size_boys%number_of_sequences;
     int remainder_girls=size_girls%number_of_sequences;
+    if (remainder_boys==0 && size_boys/number_of_sequences==(size_girls/number_of_sequences+1))  {//special case if the populations are consecutive multiples of the number of sequences
+        remainder_boys=number_of_sequences;  //thus we consider the (number of sequences) students as those that will be placed as an extra in each class
+    }//For the ration of pipulations to be complete, the smallest number, MUST be a multiple of the number of sequences(Explained the reasons in the README)
+    else if (remainder_girls==0 && size_girls/number_of_sequences==(size_boys/number_of_sequences+1))  {
+        remainder_girls=number_of_sequences;
+    }
     int number_of_students=size_boys+size_girls;
     int boys_to_girls_difference=size_boys-size_girls;
     if (!complex_maths(size_boys/number_of_sequences,size_girls/number_of_sequences,remainder_boys,remainder_girls,number_of_sequences))  {
@@ -83,35 +99,32 @@ School::School(const std::string* boys,const std::string* girls,int size_boys,in
         throw ;
     }
     if (boys_to_girls_difference>0)  {
-        large_sequence=new Sequence(size_girls+boys_to_girls_difference);
+        large_sequence=new Sequence(size_boys);//create an empty sequence, which will be the arrangement of classrooms, with its max size being the number of the highest population
     }
     else if (boys_to_girls_difference<=0)  {
-        large_sequence=new Sequence(size_boys-boys_to_girls_difference);
+        large_sequence=new Sequence(size_girls);
     }
     int min_size;
-    if(size_girls>size_boys)  {
+    if(size_girls>size_boys)  { //minimum nubmer of pairs for each classroom(those will be complete pairs)
         min_size=size_boys/number_of_sequences;
     }
     else  {
         min_size=size_boys/number_of_sequences;
     }
     for (int i=0;i<number_of_sequences;i++)  { 
-        if (remainder_boys>0)  {
-            std::cout << "1    " << std::endl;
+        if (remainder_boys>0)  { //place +1 boy as the lonely pair of the sequence 
             arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,2,mess_limit,quiet_limit,i);
-            registered_girls=registered_girls+min_size;
+            registered_girls=registered_girls+min_size;//οι αυξησεις ειναι αναλογες με τους αριθμους μαθητων που μπηκαν στην αρχικη ακολουθια
             registered_boys=registered_boys+min_size+1;
             remainder_boys--;
         }
-        else if (remainder_girls>0)  {
-            std::cout << "2    " << std::endl;
+        else if (remainder_girls>0)  {//place +1 girl as the lonely pair of the sequence
             arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,1,mess_limit,quiet_limit,i);
             registered_girls=registered_girls+min_size+1;
             registered_boys=registered_boys+min_size;
             remainder_girls--;
         }
-        else  {
-            std::cout << "3   " << std::endl;
+        else  {//even number of boys and girls
             arrangements[i]=new Sequence(boys+registered_boys,girls+registered_girls,min_size,0,mess_limit,quiet_limit,i);
             registered_girls=registered_girls+min_size;
             registered_boys=registered_boys+min_size;
@@ -129,24 +142,23 @@ School::~School()  {
 
 void School::switch_member_of_pair(Student_Pair* pair1,Student_Pair* pair2,bool full_switch,bool gender)  {
     if (full_switch)  {
-        std::cout <<pair1->get_situation()<<" "<<pair2->get_situation() <<std::endl;
-        pair1->pay_and_repent(1,0);
+        pair1->pay_and_repent(1,0);  //charge the class of every naughty student of the pair with a penalty and remove the <naughty> statuw effect from them
         pair2->pay_and_repent(1,0);
-        Student* temp_boy=pair2->get_member(0);
+        Student* temp_boy=pair2->get_member(0); //swap through the use of a temporary variable
         Student* temp_girl=pair2->get_member(1);
         pair2->replace_member(pair1->get_member(1),1);
         pair2->replace_member(pair1->get_member(0),0);
         pair1->replace_member(temp_girl,1);
         pair1->replace_member(temp_boy,0);
     }
-    else if (gender) {
+    else if (gender) {  //charge only the classes of the girls
         pair1->pay_and_repent(0,1);
         pair2->pay_and_repent(0,1);
         Student* temp_girl=pair2->get_member(1);
         pair2->replace_member(pair1->get_member(1),1);
         pair1->replace_member(temp_girl,1);
     }
-    else  {
+    else  {//charge only rhe classes of the boys
         pair1->pay_and_repent(0,0);
         pair2->pay_and_repent(0,0);
         Student* temp_boy=pair2->get_member(0);
@@ -157,20 +169,70 @@ void School::switch_member_of_pair(Student_Pair* pair1,Student_Pair* pair2,bool 
 
 void School::swap(Student_Pair* pair,bool gender)  {
     Student_Pair* other_pair;
-    if (pair->get_mode_of_transfer()==0)  {
-        std::cout << "0"<< std::endl;
-        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,false,gender);
-        switch_member_of_pair(pair,other_pair,0,gender);  
+    std::cout << "-->";
+    if (pair->get_mode_of_transfer()==0)  {//a swap will occur with a student of the same sequence
+        std::cout << "Student makes noise ("<<pair->get_member(gender)->get_name() << "). Student's classroom will receive 1 point.";
+        std::cout << " He will be switched with another student of the same sequence: ";
+        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,false,gender);//only the "gender" and the "same sequence" are important criteria for the search
+        std::cout<<other_pair->get_member(gender)->get_name()<<std::endl;
+        if (other_pair->bad_pair()!=0)  {//if the other student is also naughty, punish his classroom
+            std::cout << "Second student also happens to make noise, his classroom will also receive 1 point.\n";
+        }
+        std::cout << "Initial Status:\n";
+        pair->get_sequence_belonging()->print(); //print initial sequence
+        switch_member_of_pair(pair,other_pair,0,gender);//swap and punish pairs
+        std::cout << "Final Status:\n";
+        pair->get_sequence_belonging()->print();//print final sequence
+        std::cout<<std::endl;
     }
-    else if (pair->get_mode_of_transfer()==1)  {
-        std::cout << "1"<< std::endl;
-        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,true,false);
+    else if (pair->get_mode_of_transfer()==1)  {//a swap will occur with a pair of the same sequence
+        other_pair=pick_random(pair,pair->get_sequence_id(),true,false,true,false);//only the "complete pair" and the "same sequence" are important criteria for the search
+        std::cout << "Students couple makes noise (" << pair->get_member(0)->get_name()<< " " <<pair->get_member(1)->get_name() << "). Their repsective classrooms will receive 1 point. ";
+        std::cout << "They will be switched with the couple of the same sequence: ";
+        std::cout << "(" <<other_pair->get_member(0)->get_name()<< " " <<other_pair->get_member(1)->get_name() << ")\n";
+        if (other_pair->bad_pair()==3)  {//Print the the other pair will also be punished
+            std::cout << "Second pair also happens to make noise, their repsective classrooms will also receive 1 point";
+        }
+        else if (other_pair->bad_pair()!=0) {
+            std::cout << "A student of second pair also happens to make noise, his classroom will also receive 1 point";
+        }
+        std::cout << "Initial Status:\n";
+        pair->get_sequence_belonging()->print();
         switch_member_of_pair(pair,other_pair,1,0);
+        std::cout << "Final Status:\n";
+        pair->get_sequence_belonging()->print();
+        std::cout<<std::endl;
     }
-    else  {
-        std::cout << "2"<< std::endl;
-        other_pair=pick_random(pair,pair->get_sequence_id(),false,pair->get_importance(),true,false);
+    else  {//a swao will occur with a pair of another sequence
+        other_pair=pick_random(pair,pair->get_sequence_id(),false,pair->get_importance(),true,false);//only the "complete pair" and the "different sequence" are important criteria for the search, with the vvip scenario extra functions being used if its used
+        std::cout << "Students couple make a lot of noise (" << pair->get_member(0)->get_name()<< " " <<pair->get_member(1)->get_name() << "). Their repsective classrooms will receive 2 points. "; 
+        std::cout <<"They will be switched with a couple of a separate sequence: ";
+        std::cout << "(" <<other_pair->get_member(0)->get_name()<< " " <<other_pair->get_member(1)->get_name() << ")\n";
+        if (other_pair->bad_pair()==3)  { 
+            int point;
+            if (other_pair->get_mode_of_transfer()==2)  { //if the other pair would also need to change sequence, then we punish it now
+                point=2;
+            }
+            else  {
+                point=1;
+            }
+            std::cout << "Second pair also happens to make noise, their repsective classrooms will receive "<< point <<" point";
+            if (point==2)  {
+                std::cout << "s\n";
+            }
+            else  {
+                std::cout << '\n';
+            }
+        }
+        else if (other_pair->bad_pair()!=0) {
+            std::cout << "A student of second pair also happens to make noise, his classroom will also receive 1 point\n";
+        }
+        std::cout << "Initial Status:" << std::endl;
+        pair->get_sequence_belonging()->print();
         switch_member_of_pair(pair,other_pair,1,0);
+        std::cout << "Final Status:\n";
+        pair->get_sequence_belonging()->print();
+        std::cout<<std::endl;
     }
 }
 
@@ -189,34 +251,34 @@ void School::print_unified_arrangement()  {
 }
 
 void School::create_unified_sequence()  {
-    int liability[number_of_sequences];
+    int liability[number_of_sequences];//an array for the positions of the lonely pairs, in case we find an opportunity to place them in another lonely pair of opposite gender
     int liability_count=0;
     int last_lonely_pair;
     for (int i=0;i<number_of_sequences;i++)  {
         int j;
         for (j=0;(j<arrangements[i]->count_girls()) && (j<arrangements[i]->count_boys());j++)  {
-            large_sequence->copy_pair(arrangements[i]->get_nth_pair(j));
+            large_sequence->copy_pair(arrangements[i]->get_nth_pair(j)); //copy(pass the pointer) of every complete pair to the large sequence
         }
-        if (arrangements[i]->count_girls()!=arrangements[i]->count_boys())  {
+        if (arrangements[i]->count_girls()!=arrangements[i]->count_boys())  {//if this arrangement has a lonely pair
             last_lonely_pair=arrangements[i]->count_students()/2;
-            if (arrangements[i]->get_nth_pair(last_lonely_pair)->get_situation()==2)  {
+            if (arrangements[i]->get_nth_pair(last_lonely_pair)->get_situation()==2)  { //if its a boy
                 bool success=false;
-                for (int k=0;k<liability_count;k++)  {
+                for (int k=0;k<liability_count;k++)  {//search if we have a lonely pair with a girl
                     if (liability[k]!=-1 && large_sequence->get_nth_pair(liability[k])->get_situation()==1)  {
-                        large_sequence->get_nth_pair(liability[k])->complete_pair(arrangements[i]->get_nth_pair(last_lonely_pair),false);
-                        arrangements[i]->send_to_oblivion(arrangements[i]->get_nth_pair(last_lonely_pair));
-                        liability[k]=-1;
+                        large_sequence->get_nth_pair(liability[k])->complete_pair(arrangements[i]->get_nth_pair(last_lonely_pair),false);//put the boy in the pair of the girl
+                        arrangements[i]->send_to_oblivion(arrangements[i]->get_nth_pair(last_lonely_pair));//destroy the Pair object used to store the boy
+                        liability[k]=-1; //if we were successful, make the girl's position infit to be used again
                         success=true;
                         break;
                     }
                 }
                 if (!success)  {
-                    large_sequence->copy_pair(arrangements[i]->get_nth_pair(j));
-                    liability[liability_count]=large_sequence->get_pair_position()-1;
+                    large_sequence->copy_pair(arrangements[i]->get_nth_pair(j)); //if we are not successful, copy the lonely pair, with the hope that it may get completed in the future
+                    liability[liability_count]=large_sequence->get_pair_position()-1;//its position being the current last pair of the large sequence
                     liability_count++;
                 }
             }
-            else if (arrangements[i]->get_nth_pair(last_lonely_pair)->get_situation()==1)  {
+            else if (arrangements[i]->get_nth_pair(last_lonely_pair)->get_situation()==1)  {//same scenario but for a girl
                 bool success=false;
                 for (int k=0;k<liability_count;k++)  {
                     if (liability[k]!=-1 && large_sequence->get_nth_pair(liability[k])->get_situation()==2)  {
@@ -256,25 +318,19 @@ void School::behave(int L)  {
                 if (large_sequence->get_nth_pair(pick)->bad_pair()!=0)  {
                     continue;
                 }
-                std::cout << "here"<< std::endl;
                 bool both=large_sequence->get_nth_pair(pick)->cause_trouble(j,naughty_students);
-                std::cout << "here1"<< std::endl;
-                if (rand()%2==0 && both && (pick+1)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+1)->get_situation()==3)  {
-                    std::cout << "here2"<< std::endl;
+                if (rand()%3==0 && both && (pick+1)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+1)->get_situation()==3)  {
                     both=large_sequence->get_nth_pair(pick+1)->cause_trouble(j,naughty_students);
-                    std::cout << "here3"<< std::endl;
-                    if (number_of_sequences>3 && rand()%2==0 && both && (pick+2)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+2)->get_situation()==3)  {
-                        std::cout << "here4"<< std::endl;
+                    if (number_of_sequences>3 && rand()%3==0 && both && (pick+2)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+2)->get_situation()==3)  {
                         large_sequence->get_nth_pair(pick+2)->cause_trouble(j,naughty_students);
-                        std::cout << "here5"<< std::endl;
                     }  
                 }
                 
             }
             for (int i=0;i<number_of_sequences;i++)  {
+                int noisy_pairs_counter=0;
                 int start_of_consecutive_pair=0;
                 int consecutive_counter=0;
-                int noisy_pairs_counter=0;
                 for (int j=0;j<arrangements[i]->get_pair_position();j++)  {
                     if (arrangements[i]->get_nth_pair(j)->bad_pair()==3)  {
                         if (consecutive_counter==0)  {
@@ -323,26 +379,22 @@ void School::behave(int L)  {
                     if (large_sequence->get_nth_pair(i)->is_consecutive_pairs_start())  {
                         Set_availability_to_open();
                     }
-                    std::cout << "niceeee"<< std::endl;
                     swap(large_sequence->get_nth_pair(i),0);   
                 }
             }  
             for (int i=0;i<large_sequence->get_pair_position();i++)  {
                 if (large_sequence->get_nth_pair(i)->bad_pair()==3)  {
-                    std::cout << "sweet"<< std::endl;
                     swap(large_sequence->get_nth_pair(i),0);    
                 }
             }
             for (int i=0;i<large_sequence->get_pair_position();i++)  {
                 if (large_sequence->get_nth_pair(i)->bad_pair()==1)  {
-                    std::cout << "git"<< std::endl;
                     swap(large_sequence->get_nth_pair(i),1);
                 }
                 else if (large_sequence->get_nth_pair(i)->bad_pair()==2)  {
-                    std::cout << "biy"<< std::endl;
                     swap(large_sequence->get_nth_pair(i),0);  
                 }
-            } 
+            }
         }
     }
 
@@ -388,7 +440,9 @@ void Student::causes_noise()  {
 
 
 
-
+Sequence* Student_Pair::get_sequence_belonging()  {
+    return sequence;
+}
 
 short Student_Pair::get_mode_of_transfer()  {
     return mode_of_tranfer;
@@ -424,15 +478,16 @@ Student_Pair::Student_Pair(Student* Girl,Student* Boy,Sequence* sequence) : star
 Student_Pair::~Student_Pair()  {
     if (Boy!=NULL)  {
         delete Boy;
+        Boy=NULL;
     }
     if (Girl!=NULL)  {
         delete Girl;
+        Girl=NULL;
     }
 }
 
 void Student_Pair::pay_and_repent(bool both_members,bool gender)  {
     if (both_members)  {
-        std::cout << "Pay" <<Boy << "<->" << Girl << std::endl;
         Boy->get_sequence()->increase_degree_of_disorder(Boy->is_mischievous()*(double_penalty+1));
         Girl->get_sequence()->increase_degree_of_disorder(Girl->is_mischievous()*(double_penalty+1));
         Boy->repent();
@@ -598,7 +653,7 @@ void Sequence::set_availability_to(bool status)  {
     available=status;
 }
 
-Sequence::Sequence(int max_size) : pairs_count(0) {
+Sequence::Sequence(int max_size) : pairs_count(0), id(-1) {
     pairs=new Student_Pair*[max_size];
 }
 
@@ -626,8 +681,10 @@ Sequence::Sequence(const std::string* boys,const std::string* girls,int min_size
 }
 
 Sequence::~Sequence()  {
-    for (int i=0;i<pairs_count;i++)  {
-        //delete pairs[i];
+    if (id!=-1)  {
+        for (int i=0;i<pairs_count;i++)  {
+            delete pairs[i];
+        }
     }
     delete[] pairs;
 }
