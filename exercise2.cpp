@@ -20,7 +20,7 @@ void School::Set_availability_to_open()  {  // Set all sequences to accesible fo
 
 Student_Pair* School::pick_random(Student_Pair* original_pair,int sequence_id,bool same_class,bool vvip_scenario,bool full_switch,bool gender_of_pair)  {
     int choices[arrangements[sequence_id]->get_pair_position()+1]; //Pick a random pair out of some candidates from one sequence
-    int posible_choices=0;                                         //this is plausible if for for each valid candidate, we store his position in an array
+    int posible_choices=0;                                         //this is plausible if for each valid candidate, we store his position in an array
     Student_Pair* pair;
     if (same_class)  {   //case of pickinh a pair from the same sequence
         for (int i=0;i<arrangements[sequence_id]->get_pair_position();i++)  {
@@ -306,89 +306,87 @@ void School::create_unified_sequence()  {
 }
 
 void School::behave(int L)  {
-    while (L-->0)  {
+    while (L-->0)  {//number of repetitions 
         srand(time(NULL));
         int naughty_students;
         bool double_mess=0;
         int limit=large_sequence->get_pair_position();
         for (int i=0;i<L;i++)  {
-            naughty_students=rand()%(limit);
+            naughty_students=rand()%(limit/2);//number of naughty students per repetition
             for (int j=0;j<naughty_students;j++)  {
-                int pick=rand()%limit;
-                if (large_sequence->get_nth_pair(pick)->bad_pair()!=0)  {
+                int pick=rand()%limit;//choosing a pair to become naughty
+                if (large_sequence->get_nth_pair(pick)->bad_pair()!=0)  {//if the pair is already naughty, we ignore it(since rand() and rand()-1 students aren't really different in our case)
                     continue;
                 }
-                bool both=large_sequence->get_nth_pair(pick)->cause_trouble(j,naughty_students);
-                if (rand()%3==0 && both && (pick+1)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+1)->get_situation()==3)  {
-                    both=large_sequence->get_nth_pair(pick+1)->cause_trouble(j,naughty_students);
-                    if (number_of_sequences>3 && rand()%3==0 && both && (pick+2)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+2)->get_situation()==3)  {
+                bool both=large_sequence->get_nth_pair(pick)->cause_trouble(j,naughty_students);//make one of the students of the pair, or both, to become mishievous
+                if (rand()%3==0 && both && (pick+1)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+1)->get_situation()==3)  {//if in the previous pair, we chose both students to cause noise, then we try and do it to the next
+                    both=large_sequence->get_nth_pair(pick+1)->cause_trouble(j,naughty_students);//in an effort to make consecutives pais of naughty students to appear more often
+                    if (rand()%3==0 && both && (pick+2)<limit && (j+1)<naughty_students && large_sequence->get_nth_pair(pick+2)->get_situation()==3)  {//likewise if we have created two consecutives, we try and create a third
                         large_sequence->get_nth_pair(pick+2)->cause_trouble(j,naughty_students);
                     }  
                 }
-                
+                //keep in mind that there is nothing that states that in the next pair, there won't appear another consecutive series
+                //thus there is no limit to the maximum amount of consecutives pairs one can have in a series of consecutives 
             }
             for (int i=0;i<number_of_sequences;i++)  {
-                int noisy_pairs_counter=0;
-                int start_of_consecutive_pair=0;
+                int noisy_pairs_counter=0;//counter of all non-consecutive mischievous pairs and consecutive mischievous pairs which number less than 3
+                int start_of_consecutive_pair=0;//stores the position of the first consecutive in a series of consecutives
                 int consecutive_counter=0;
                 for (int j=0;j<arrangements[i]->get_pair_position();j++)  {
-                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3)  {
-                        if (consecutive_counter==0)  {
-                            start_of_consecutive_pair=j;
+                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3)  {//if we find a naughty pair
+                        if (consecutive_counter==0)  {//and there isn't one in the previous pair
+                            start_of_consecutive_pair=j;//we store its position in hope that more consecutives will appear afterwards
                         }
                         consecutive_counter++;
                         noisy_pairs_counter++;
                     }
-                    else  {
-                        if (consecutive_counter>2)  {
+                    else  {//else, if we don't find a naughty pair
+                        if (consecutive_counter>2)  {//we check to see if we had previously found a series of consecutives with length greater than two,
                             for (int k=start_of_consecutive_pair;k<start_of_consecutive_pair+consecutive_counter;k++)  {
                                 if (k==start_of_consecutive_pair)  {
-                                    arrangements[i]->get_nth_pair(k)->set_to_start_of_consecutive_pairs();
+                                    arrangements[i]->get_nth_pair(k)->set_to_start_of_consecutive_pairs();//set the first pair of the series of consecutives as the start of them
                                 }
-                                arrangements[i]->get_nth_pair(k)->award_vvip_status();
+                                arrangements[i]->get_nth_pair(k)->award_vvip_status();//trigger all the necessary flags
                                 arrangements[i]->get_nth_pair(k)->award_double_penalty_status();
                                 arrangements[i]->get_nth_pair(k)->set_mode_of_transfer(2);
                             }
-                            noisy_pairs_counter=noisy_pairs_counter-consecutive_counter;
+                            noisy_pairs_counter=noisy_pairs_counter-consecutive_counter;//τmore than 2 consecutive pairs do not count towards the noisey_pairs_counter
                             consecutive_counter=0;
                         }
-                        else  {
-                            arrangements[i]->get_nth_pair(start_of_consecutive_pair)->award_double_penalty_status();
-                            consecutive_counter=0;
-                            noisy_pairs_counter++;
-                        }
+                        consecutive_counter=0;//else if we didn't have more than 2, we don't do anything for now
                         if (arrangements[i]->get_nth_pair(j)->bad_pair()==2 || arrangements[i]->get_nth_pair(j)->bad_pair()==1)  {
-                            arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(0);
+                            arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(0);//if we find a mishievous student, we set his mode of transfer
                         }
                     }
                 }
                 for (int j=0;j<arrangements[i]->get_pair_position();j++)  {
-                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3 && arrangements[i]->get_nth_pair(j)->get_importance()!=1)  {
-                        if (noisy_pairs_counter>2)  {
+                    if (arrangements[i]->get_nth_pair(j)->bad_pair()==3 && arrangements[i]->get_nth_pair(j)->get_importance()!=1)  {//searching the remaining naughty pairs that didn't receive any mode of transfer
+                        if (noisy_pairs_counter>2)  {//if we have more than two, prepare them to be moved to another sequence
                             arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(2);
                             arrangements[i]->get_nth_pair(j)->award_double_penalty_status();
                         }
-                        else  {
+                        else  {//else, prepare them to me moved in their own sequence
                             arrangements[i]->get_nth_pair(j)->set_mode_of_transfer(1);
                         }
                     }
                 }
             } 
+            //from now on, we will perform 3 iterations of the large sequence
             for (int i=0;i<large_sequence->get_pair_position();i++)  {
-                if (large_sequence->get_nth_pair(i)->get_importance())  {
-                    if (large_sequence->get_nth_pair(i)->is_consecutive_pairs_start())  {
+                if (large_sequence->get_nth_pair(i)->get_importance())  {//in the first, we switch all consecutive pairs(>2) with others of different seqeunces
+                    if (large_sequence->get_nth_pair(i)->is_consecutive_pairs_start())  {//if  its the start of a series of consecutive pairs, make all the sequences available to place a pair
                         Set_availability_to_open();
                     }
-                    swap(large_sequence->get_nth_pair(i),0);   
+                    swap(large_sequence->get_nth_pair(i),0); //make the switch and punish the students related to it
                 }
             }  
             for (int i=0;i<large_sequence->get_pair_position();i++)  {
-                if (large_sequence->get_nth_pair(i)->bad_pair()==3)  {
+                if (large_sequence->get_nth_pair(i)->bad_pair()==3)  {//in the second iteration, we look at the remaining naughty pairs, and switch them
                     swap(large_sequence->get_nth_pair(i),0);    
                 }
             }
             for (int i=0;i<large_sequence->get_pair_position();i++)  {
-                if (large_sequence->get_nth_pair(i)->bad_pair()==1)  {
+                if (large_sequence->get_nth_pair(i)->bad_pair()==1)  {//lastly we look for mischievous students and make switch them
                     swap(large_sequence->get_nth_pair(i),1);
                 }
                 else if (large_sequence->get_nth_pair(i)->bad_pair()==2)  {
@@ -440,6 +438,9 @@ void Student::causes_noise()  {
 
 
 
+
+
+
 Sequence* Student_Pair::get_sequence_belonging()  {
     return sequence;
 }
@@ -476,7 +477,7 @@ Student_Pair::Student_Pair(Student* Girl,Student* Boy,Sequence* sequence) : star
 }
 
 Student_Pair::~Student_Pair()  {
-    if (Boy!=NULL)  {
+    if (Boy!=NULL)  { //this is mainly for the case where we may want to destroy a Student_Pair, but have removed all students from it(due to a completion of a lonely pair) 
         delete Boy;
         Boy=NULL;
     }
@@ -487,8 +488,8 @@ Student_Pair::~Student_Pair()  {
 }
 
 void Student_Pair::pay_and_repent(bool both_members,bool gender)  {
-    if (both_members)  {
-        Boy->get_sequence()->increase_degree_of_disorder(Boy->is_mischievous()*(double_penalty+1));
+    if (both_members)  { //increase the "classroom's" degree of disorder for the naughty kids that are swapped
+        Boy->get_sequence()->increase_degree_of_disorder(Boy->is_mischievous()*(double_penalty+1)); 
         Girl->get_sequence()->increase_degree_of_disorder(Girl->is_mischievous()*(double_penalty+1));
         Boy->repent();
         Girl->repent();
@@ -503,12 +504,12 @@ void Student_Pair::pay_and_repent(bool both_members,bool gender)  {
             Boy->repent();
         }
     }
-    double_penalty=0;
+    double_penalty=0; //remove all naughty status for the pair
     vvip=0;
 }
 
-short Student_Pair::bad_pair()  {
-    if (Boy==NULL) return Girl->is_mischievous();
+short Student_Pair::bad_pair()  {//a representation which tranlastes to: 3->Bad_Pair, 2->Bad_Boy, 1->Bad_Girl
+    if (Boy==NULL) return Girl->is_mischievous(); 
     if (Girl==NULL) return 2*Boy->is_mischievous();
     return 2*Boy->is_mischievous()+Girl->is_mischievous();
 
@@ -522,11 +523,11 @@ std::string Student_Pair::get_name_of_girl()  {
     return Girl->get_name();
 }
 
-short Student_Pair::get_situation()  {
+short Student_Pair::get_situation()  {//a represenation similar to the bad_pair(), 3->Pair_of_Boy_and_Girl, 2->Pair_of_Boy, 1->Pair_of_Girl
     return situation;
 }
 
-void Student_Pair::complete_pair(Student_Pair* other_half,bool gender)  {
+void Student_Pair::complete_pair(Student_Pair* other_half,bool gender)  {//make a lonely pair into a complete pair
     if (gender)  {
         this->Girl=other_half->Girl;
     }
@@ -564,19 +565,19 @@ Student* Student_Pair::get_member(bool gender)  {
 }
 
 bool Student_Pair::cause_trouble(int &rolls,int max_rolls)  {
-    if (situation==3)  {
-        if (rand()%2==0 && rolls+1<max_rolls)  {
+    if (situation==3)  { //if not a lonely pair
+        if (rand()%2==0 && rolls+1<max_rolls)  {//and there are enought rolls for two choices, try and create a bad_pair
             rolls=rolls+2;
             get_member(0)->causes_noise();
             get_member(1)->causes_noise();
             return true;
         }
-        else  {
+        else  {//else go for either of its two members
             get_member(rand()%2)->causes_noise();
             rolls++;
         }  
     }
-    else if (situation==2)  {
+    else if (situation==2)  {//unless of course there is only one member, in which case, choose it
         get_member(0)->causes_noise();
         rolls++;
     } 
@@ -639,10 +640,10 @@ int Sequence::get_pair_position()  {
 }
 
 void Sequence::send_to_oblivion(Student_Pair* pair)  {
-    pairs_count--; // will only occur on the last pair of a classroom
-    pair->replace_member(NULL,0);
-    pair->replace_member(NULL,1);
-    delete pair;
+    pairs_count--; 
+    pair->replace_member(NULL,0);//make both members NULL so that the destructor of Student_Pair does not try and destroy the pointers to object Student
+    pair->replace_member(NULL,1);//since all we do is pass around the pointers of objects, deleting one would affect others pairs that hold the same pointer 
+    delete pair;//This will only occur on the last pair of a classroom, therefore there will be no fear of messing up the array
 }
 
 bool Sequence::get_availability()  {
@@ -654,39 +655,38 @@ void Sequence::set_availability_to(bool status)  {
 }
 
 Sequence::Sequence(int max_size) : pairs_count(0), id(-1) {
-    pairs=new Student_Pair*[max_size];
+    pairs=new Student_Pair*[max_size]; //create an empty sequence with an id of -1, signifying that it is the large sequence(important for the destructor)
 }
 
 Sequence::Sequence(const std::string* boys,const std::string* girls,int min_size,int mode,int mess_limit,int quiet_limit,short id) : pairs_count(0), available(true), degree_of_disorder(0), quiet_limit(quiet_limit), mess_limit(mess_limit), id(id) {
-    pairs=new Student_Pair*[min_size+(mode!=0)];
+    pairs=new Student_Pair*[min_size+(mode!=0)];//if mode!=0 then an extra student will be placed as the lonely pair, thus requiring min_size+1 pairs
     int i;
-    
     for (i=0;i<min_size;i++)  {
         Student* Boy=new Student(boys[i],0,this);
         Student* Girl=new Student(girls[i],1,this);
-        pairs[i]=new Student_Pair(Girl,Boy,this);
+        pairs[i]=new Student_Pair(Girl,Boy,this);//create pairs and insert them on the array
         pairs_count++;
     }
     if (mode==1)  {
         
-        Student* Girl=new Student(girls[i],1,this);
-        pairs[i]=new Student_Pair(Girl,NULL,this);
+        Student* Girl=new Student(girls[i],1,this); 
+        pairs[i]=new Student_Pair(Girl,NULL,this);//make a pair of only a girl
         pairs_count++;
     }
     else if (mode==2)  {
         Student* Boy=new Student(boys[i],0,this);
-        pairs[i]=new Student_Pair(NULL,Boy,this);
+        pairs[i]=new Student_Pair(NULL,Boy,this);//make a pair of only a boy
         pairs_count++;
     }
 }
 
 Sequence::~Sequence()  {
-    if (id!=-1)  {
-        for (int i=0;i<pairs_count;i++)  {
+    if (id!=-1)  {//since large sequence and the small sequences share the same pairs, we must be carefull not to delete them twice
+        for (int i=0;i<pairs_count;i++)  {//thus, we delete every pair of the small seqeunces
             delete pairs[i];
         }
     }
-    delete[] pairs;
+    delete[] pairs;//and for the large sequence we delete only its array which holds those pairs
 }
 
 /*
@@ -701,18 +701,18 @@ void Sequence::add_to_arrangement(Student* Girl,Student* Boy)  {
 void Sequence::print()  {
     bool flip=true;
     int size=5;
-    for (int i=0;i<pairs_count;i++)  {
+    for (int i=0;i<pairs_count;i++)  { //first iteration prints the upper row of student pairs
         if (flip)  {
-            if (pairs[i]->get_situation()!=1)  {
+            if (pairs[i]->get_situation()!=1)  {//if there is a boy in the upper part of the pair we are trying to print, we print it
                 printf("%*s",size,pairs[i]->get_name_of_boy().c_str()); 
             }
             else  {
-                printf("%*s",size,"-"); 
+                printf("%*s",size,"-"); //else we print nothing, as the pair only has a girl which will be printed in the lower row at the second iteration 
             }
             flip=false;
         }
         else  {
-            if (pairs[i]->get_situation()!=2)  {
+            if (pairs[i]->get_situation()!=2)  {//same for girl
                 printf("%*s",size,pairs[i]->get_name_of_girl().c_str()); 
             }
             else  {
@@ -725,16 +725,16 @@ void Sequence::print()  {
     flip=true;
     for (int i=0;i<pairs_count;i++)  {
         if (flip)  {
-            if (pairs[i]->get_situation()!=2)  {
+            if (pairs[i]->get_situation()!=2)  {//if there is a girl in the lower part of the pair we are trying to print, we print it
                 printf("%*s",size,pairs[i]->get_name_of_girl().c_str()); 
             }
             else  {
-                printf("%*s",size,"-"); 
+                printf("%*s",size,"-"); //else we print nothing, as the pair only has a boy which has already been printed in the upper row at the first iteration
             }
             flip=false;
         }
         else  {
-            if (pairs[i]->get_situation()!=1)  {
+            if (pairs[i]->get_situation()!=1)  {//same for boy
                 printf("%*s",size,pairs[i]->get_name_of_boy().c_str()); 
             }
             else  {
@@ -748,7 +748,7 @@ void Sequence::print()  {
 }
 
 
-void Sequence::copy_pair(Student_Pair* pair)  {  
+void Sequence::copy_pair(Student_Pair* pair)  {//store the pointer to the pair in the array of the large sequence(so that changes in the small sequences affect the large sequence and vice versa)
     pairs[pairs_count]=pair;
     pairs_count++;
 } 
