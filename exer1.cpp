@@ -4,26 +4,14 @@
 #include <ctime>
 
 namespace pseudo_hash  {
-    std::string matrix[]={"school entrance","yard","stairs","corridor"};
-    char floor[]={'A','B','C'};
+    std::string matrix[]={"school entrance","yard","stairs","corridor"}; //a way to minimize space used by each Student object 
+    char floor[]={'A','B','C'};//a one on one representation for floors using the alphabet
 };
 
-Student** re_adjust_array(Student** old_array,int start_index,int end_index,int size)  {
-    Student** array=new Student*[size];
-    for (int i=0;i<end_index-start_index;i++)  {
-        array[i]=old_array[start_index+i];
-    }
-    delete[] old_array;
-    return array;
-}
 
 void Classroom::assign_teacher(std::string name)  {
     this->teacher.assign(name);
 }
-
-/*void Classroom::assign_student(Student* student)  {
-    students[registered_students_count]=student;
-}*/
 
 void Classroom::teacher_enters()  {
     entry_possible=false;
@@ -42,14 +30,14 @@ short Classroom::get_id()  {
     return id;
 }
 
-Classroom::Classroom(int capacity,short id)  : entry_possible(true), population(0), capacity(capacity)/*, registered_students_count(0)*/, id(id) {
+Classroom::Classroom(int capacity,short id)  : entry_possible(true), population(0), capacity(capacity), id(id) {
     std::cout << "A classroom has been created" << std::endl;
-    students=new Student*[capacity];
+    students=new Student*[capacity]; //space to store students that enter the classroom
 }
 
 Classroom::~Classroom()  {
     std::cout << "A classroom has been destroyed" << std::endl;
-    delete[] students;
+    delete[] students;//delete only the array where the pointers are stored, not the pointes themselves
 }
 
 void Classroom::print()  {
@@ -64,7 +52,7 @@ void Classroom::print()  {
 
 void Classroom::enter(Student* student)  {
     student->set_location_to(4);
-    students[population]=student;
+    students[population]=student;//store the pointer of the student that entered
     population++;
     std::cout << student->get_name() << " enters classroom\n";
 }
@@ -82,7 +70,7 @@ Corridor::~Corridor()  {
 }
 
 int Corridor::get_student_class_id()  {
-    return students[population-1]->get_classroom_id();
+    return students[population-1]->get_classroom_id();//we only care for the last student of the classroom, as we are stimualting a priority queue structure of storing data
 }
 
 void Corridor::print()  {
@@ -109,12 +97,12 @@ void Corridor::enter(Student* student)  {
 
 Student* Corridor::exit()  {
     std::cout << students[population-1]->get_name() << " exits " << pseudo_hash::matrix[3] << " --> ";
-    return students[--population]; 
+    return students[--population];//we return the last student and reduce the counter for the population
 }
 
 Student* Corridor::forced_exit(short id)  {
-    for (int i=0;i<population;i++)  {
-        if ((students[i]->get_classroom_id()%6)==id)  {
+    for (int i=0;i<population;i++)  {//since we are usign a priotirty queue, if the last student can't exit, then neither can the rest
+        if ((students[i]->get_classroom_id()%6)==id)  {//but in the case of the last wave of students, we want those that are in the cor
             Student* temp=students[i];
             students[i]=students[population-1];
             students[population-1]=temp;
@@ -149,7 +137,7 @@ SchoolBuilding::~SchoolBuilding()  {
         delete teachers[i];
     }
     for (int i=0;i<s_count;i++)  {
-        delete students[i];
+        delete students[i]; //given that we keep all the pointers in the School class, it is easier to delete all the student objects through the array and not in the destructor of each space
     }
     delete yard;
     delete stairs;
@@ -166,17 +154,18 @@ void SchoolBuilding::register_teacher(std::string name)  {
         std::cout << "Error: Budget for Teaching Personnel Depleted" << std::endl ; 
         return ;
     }
-    teachers[t_count]=new Teacher(name,floors[t_count/6]->get_class(t_count%6));
-    t_count++;
+    teachers[t_count]=new Teacher(name,floors[t_count/6]->get_class(t_count%6));//since teaching personel will only go up to 18, using division by 6 allows us to separate them into 3 floors,
+    t_count++; //while which each modulus by 6, we can split those that entered the floor into 6 classrooms 
+    //this way we assign all the teachers to one floor and then move onto the next floor to assign the rest
 }
 
 void SchoolBuilding::register_student(std::string name)  {
     if (s_count>18*floors[0]->get_class(0)->get_capacity())  {
         std::cout << "Building's Facilities Can Not Accomodate More Students" << std::endl;
         return ;
-    }
-    students[s_count]=new Student(name,floors[(s_count/6)%3]->get_class(s_count%6));
-    s_count++;
+    }//in this case, students don't have a limit, and therefore we need to also make sure that the floor numbers don't exceed 3.
+    students[s_count]=new Student(name,floors[(s_count/6)%3]->get_class(s_count%6));//like the teachers, we assign (number_of_classrooms) students to each floor and then move onto the next
+    s_count++;//with the difference that we will repeat this over and over again
 }
 
 void SchoolBuilding::print()  {
@@ -193,65 +182,70 @@ void SchoolBuilding::print()  {
 }
 
 void SchoolBuilding::school_begins()  {
-    short kill_switch=0;
+    short kill_switch=0;//given that we repeat this process until all students have entered, there is a chance an obstacle appears and no student can advance  into the school
+    int number_of_wave=0;
     srand(time(NULL));
-    while (advanced_count<s_count && kill_switch!=3)  {
+    while (advanced_count<s_count && kill_switch!=3)  {//therefore we have placed a killswitch which will trigger when no one moves in three consecutive turns
         this->place_teacher(false);
-        bool flag1=true,flag2=true,flag3=true;
-        bool retry1=false,retry2=false,retry3=false,retry4=false;
-        int students_entering=rand()%((s_count-advanced_count)/2);
-        bool final_push= ((students_entering+advanced_count)>=s_count);
-        int starting_count=advanced_count;
-        std::cout << students<<std::endl;
-        while ((flag1+flag2)!=0)  {
+        bool flag1=true,flag2=true,flag3=false;//flags that show if there was movement between each space
+        int students_entering=rand()%((s_count-advanced_count)/4+1)+1;
+        bool final_push= ((students_entering+advanced_count)>=s_count);//a flag that signifies that the last batch of students will enter, therefore they should ignore all restrictions about whether the space they are in is full or not
+        int starting_count=advanced_count;//how many students are inside the school at each advancement
+        number_of_wave++;
+        std::cout <<"\n-> Wave "<< number_of_wave << ":\n"<<std::endl;
+        while ((flag1+flag2+flag3)!=0)  {
             flag1=false;
-            if ((advanced_count-starting_count)<students_entering)  {
+            if ((advanced_count-starting_count)<students_entering)  {//if some of the students of the current wave have not entered the school
                 int dt_count=advanced_count-starting_count;
                 for (int i=0;i<students_entering-dt_count;i++)  {
-                    if (yard->space_available())  {
-                        yard->enter(students[advanced_count]);
+                    if (yard->space_available())  {//see if there is space on the yard
+                        yard->enter(students[advanced_count]);//and make them enter it
                         advanced_count++;
-                        flag1=true;
-                        kill_switch=0;
+                        flag1=true;//signifies that there was movement between the school's entrance and the yard
+                        kill_switch=0;//since an advancement was made, reset the kill switch
                     }
                 }
                 std::cout << std::endl;
             }
             flag2=false;
-            if (!yard->space_available() ||  (flag1+flag2)==0)  {
-                retry1=true;
+            if (!yard->space_available() ||  flag1==0)  {//try to advance if the current space is full or if there will be no more students coming from the yard(in this wave)
                 int stop=yard->get_population();
                 for (int i=0;i<stop;i++)  {
                     if (stairs->space_available())  {
                         stairs->enter(yard->exit());
-                        flag2=true;
+                        flag2=true;//signifies that there was movement between the yard and the stairs
+                        kill_switch=0;
                     }
                 }
                 std::cout << std::endl;
             }
-            
-            if ((!stairs->space_available())  ||  (flag1+flag2)==0)  {
+            flag3=false;
+            if ((!stairs->space_available())  ||  (flag1+flag2)==0)  {//try to advance if the current space is full or if there will be no more students coming from the yard and stairs
                 int stop=stairs->get_population();
                 for (int i=0;i<stop;i++)  {
-                    short floor_choice=stairs->floor_distribution();
+                    short floor_choice=stairs->floor_distribution();//get the floor number of the student's classroom
                     if (floors[floor_choice]->space_available_in_corridor())  {
                         floors[floor_choice]->enter(stairs->exit());
+                        flag3=true;//signifies that there was movement between the stairs and the corridor
+                        kill_switch=0;
                     }
+                }
+            }
+            if ((flag1+flag2+flag3)==0)  {
+                for (int i=0;i<3;i++)  {
+                    flag3=floors[i]->flush();//signals whether someone managed to move from a corridor to a classroom(same variable as movement from stairs ot floor, but it doesn't matter)
                 }
             }
         }
         kill_switch++;
     }
-    for (int i=0;i<3;i++)  {
-        floors[i]->flush();
-    }
-    this->place_teacher(true);
+    this->place_teacher(true);//if there are remaining teachers who have not entered, place them inside their classrooms
 }
 
 void SchoolBuilding::place_teacher(bool all)  {
-    short pick=rand()%2;
+    short pick=rand()%4;
     int repeat=1;
-    if (pick==1 || all)  {
+    if (pick!=1 || all)  {
         int array[18];
         int number_of_candidates;
         if (all)  {
@@ -281,9 +275,8 @@ Floor::Floor(int height,int corridor_capacity,int class_capacity) : height(heigh
     std::cout << "A floor has been created" << std::endl;
     corridor=new Corridor(corridor_capacity);
     for (int i=0;i<6;i++)  {
-        classrooms[i]=new Classroom(class_capacity,6*height+i);
+        classrooms[i]=new Classroom(class_capacity,6*height+i);//id of each classroom needs to be able to show which floor the classroom belongs to, which now will be visible my dividing by 6
     }
-    students=new Student*[6*this->get_class(0)->get_capacity()];
 }
 
 Floor::~Floor()  {
@@ -291,7 +284,6 @@ Floor::~Floor()  {
     for (int i=0;i<6;i++)  {
         delete classrooms[i];
     }
-    delete[] students;
     std::cout << "A floor has been destroyed" << std::endl;
 }
 
@@ -310,14 +302,14 @@ void Floor::print()  {
 
 void Floor::enter(Student* student)  {
     std::cout << student->get_name() << " enters floor " << pseudo_hash::floor[this->height] << " --> ";
-    corridor->enter(student);
-    if (!corridor->space_available())  {
+    corridor->enter(student);//Enter the student inside the corridor
+    if (!corridor->space_available())  {//and if the corridor has reached max capacity then try and enter the students inside their respective classrooms
         std::cout << std::endl;
         int stop=corridor->get_population();
         for (int i=0;i<stop;i++)  {
-            int id=corridor->get_student_class_id()%6;
-            if (!classrooms[id]->teacher_inside())  {
-                classrooms[id]->enter(corridor->exit());
+            int id=corridor->get_student_class_id()%6;//get the classroom id of each student that tries to enter 
+            if (!classrooms[id]->teacher_inside())  {//and if there is no teacher inside the classroom
+                classrooms[id]->enter(corridor->exit());//enter the student in the classroom
             }
         }
         std::cout << std::endl;
@@ -325,47 +317,22 @@ void Floor::enter(Student* student)  {
     }
 }
 
-void Floor::flush()  {
+bool Floor::flush()  {
         int stop=corridor->get_population();
+        bool return_value=false;
         for (int i=0;i<stop;i++)  {
             for (short id=0;id<6;id++)  {
                 if (!classrooms[id]->teacher_inside())  {
                     Student* temp;
-                    if ((temp=corridor->forced_exit(id))!=NULL)  {
-                        classrooms[id]->enter(temp);
+                    if ((temp=corridor->forced_exit(id))!=NULL)  {//if we find that there is a student who can enter his classroom
+                        classrooms[id]->enter(temp);//we enter him
+                        return_value=true;//and return that there was movement between corridor and classroom
                     }
                 }
             }
         }
         std::cout << std::endl;
-}
-
-bool Floor::students_advance()  { 
-    short kill_switch=1;
-    while (kill_switch!=2 && advanced_count!=s_count)  {
-        kill_switch=0;
-        for (int i=advanced_count;i<s_count;i++)  {
-            if (corridor->space_available())  {
-                kill_switch=0;
-                corridor->enter(students[advanced_count]);
-                advanced_count++;  
-            }
-            else  {
-                kill_switch++;
-                return false;
-            }
-        }
-        if (kill_switch!=2)  {
-            int stop=corridor->get_population();
-            for (int i=0;i<stop;i++)  {
-                int id=corridor->get_student_class_id()%6;
-                if (!classrooms[id]->teacher_inside())  {
-                    classrooms[id]->enter(corridor->exit());
-                }
-            }
-        }
-    }
-    return true;
+        return return_value;
 }
 
 bool Floor::space_available_in_corridor()  {
@@ -396,7 +363,7 @@ bool Stairs::space_available()  {
 }
 
 short Stairs::floor_distribution()  {
-    return this->students[population-1]->get_classroom_id()/6;
+    return this->students[population-1]->get_classroom_id()/6;//we always "play" with the last student of a space
 }
 
 void Stairs::enter(Student* student)  {
@@ -487,7 +454,6 @@ bool Teacher::is_in_class()  {
 Student::Student(std::string name,Classroom* classroom) : location(0) {
     this->name.assign(name);
     this->classroom=classroom;
-    //classroom->assign_student(this);
     std::cout << "A Student has been created: " << name << ", student of classroom " << pseudo_hash::floor[(classroom->get_id()/6)%3] << classroom->get_id()%6 << std::endl;
 }
 
